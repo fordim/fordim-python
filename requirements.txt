@@ -1,7 +1,16 @@
-fastapi==0.115.14
-uvicorn[standard]==0.35.0
-sqlalchemy==2.0.41
-pymysql==1.1.1
-python-dotenv==1.1.1
+# Flask и связанные библиотеки
+Flask==3.1.1
+Flask-CORS==6.0.1
+
+# База данных
+SQLAlchemy==2.0.41
+PyMySQL==1.1.1
+
+# Миграции
 alembic==1.16.2
-pydantic==2.11.7 
+
+# Переменные окружения
+python-dotenv==1.1.1
+
+# Для разработки
+Werkzeug==3.1.3 

@@ -8,8 +8,9 @@ def index():
     return jsonify({
         "message": "Добро пожаловать в Flask приложение!",
         "features": [
-            {"name": "task_tracker", "url": "/api/tasks"},
-            {"name": "schedule", "url": "/api/schedule"}
+            {"name": "task_tracker", "url": "/api/tasks", "page": "/tasks-page"},
+            {"name": "schedule", "url": "/api/schedule"},
+            {"name": "subscription", "url": "/api/subscription", "page": "/subscriptions-page"}
         ]
     })
 
@@ -23,6 +24,11 @@ def tasks_page():
     """Страница управления задачами"""
     return send_from_directory('static', 'index.html')
 
+@bp.route('/subscriptions-page')
+def subscriptions_page():
+    """Страница управления подписками"""
+    return send_from_directory('static', 'subscriptions.html')
+
 @bp.route('/debug/routes')
 def debug_routes():
     """Отладка - показать все доступные маршруты"""
@@ -31,7 +37,7 @@ def debug_routes():
     for rule in current_app.url_map.iter_rules():
         routes.append({
             'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
+            'methods': list(rule.methods) if rule.methods else [],
             'rule': str(rule)
         })
     return jsonify({"routes": routes}) 

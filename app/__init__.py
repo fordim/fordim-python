@@ -27,6 +27,13 @@ def create_app():
     except Exception as e:
         print(f"❌ Ошибка регистрации schedule: {e}")
     
+    try:
+        from app.subscription import subscription_bp
+        app.register_blueprint(subscription_bp, url_prefix='/api/subscription')
+        print("✅ Зарегистрирован Blueprint subscription")
+    except Exception as e:
+        print(f"❌ Ошибка регистрации subscription: {e}")
+    
     # Основные маршруты
     from app.routes import bp as main_bp
     app.register_blueprint(main_bp)

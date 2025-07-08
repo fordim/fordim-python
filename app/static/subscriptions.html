@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подписки — картотека</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 120px;
+            background: #e3eafc;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 20px 0;
+            border-right: 2px solid #b6c6e3;
+        }
+        .sidebar-btn {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            margin: 10px 0;
+            padding: 12px 8px;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            background: #fff;
+            color: #333;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .sidebar-btn.active, .sidebar-btn:hover {
+            background: #b6c6e3;
+            color: #007bff;
+        }
+        .main-content {
+            flex: 1;
+            background: #d6f0ff;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 30px;
+            justify-items: center;
+        }
+        .subscription-card {
+            width: 160px;
+            height: 200px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 3px solid #b6c6e3;
+            transition: border 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .subscription-card.status-progress {
+            background: #fffbe6;
+            border-color: #ffc107;
+        }
+        .subscription-card.status-completed {
+            background: #e6ffed;
+            border-color: #28a745;
+        }
+        .subscription-card.status-other {
+            background: #f5f5f5;
+            border-color: #b6c6e3;
+        }
+        .subscription-card .icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+        }
+        .subscription-card .name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .subscription-card .amount {
+            font-size: 1.2em;
+            color: #007bff;
+            font-weight: bold;
+        }
+        /* Модалка */
+        .modal-bg {
+            display: none;
+            position: fixed;
+            left: 0; top: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-bg.active {
+            display: flex;
+        }
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px 30px 20px 30px;
+            min-width: 320px;
+            max-width: 90vw;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+            position: relative;
+        }
+        .modal .close {
+            position: absolute;
+            right: 18px;
+            top: 12px;
+            font-size: 1.5em;
+            color: #888;
+            cursor: pointer;
+        }
+        /* Стили для редактирования */
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .modal-field {
+            margin-bottom: 15px;
+        }
+        .modal-field label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .modal-field input, .modal-field select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .modal-field input:focus, .modal-field select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .readonly {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+        /* Цвета для фильтров в сайдбаре */
+        .sidebar-btn.all { background: #e3eafc; color: #333; }
+        .sidebar-btn.month { background: #f3e5f5; color: #7c3aed; }
+        .sidebar-btn.year { background: #e6ffe6; color: #388e3c; }
+        .sidebar-btn.soon { background: #fffde7; color: #ff9800; }
+        .sidebar-btn.completed { background: #e6ffed; color: #28a745; }
+        .sidebar-btn.active {
+            border-left: 6px solid #007bff;
+            filter: brightness(0.95);
+        }
+        .card-check-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #e6ffed;
+            border: 2px solid #28a745;
+            color: #28a745;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 1.2em;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .card-check-btn:hover {
+            background: #28a745;
+            color: #fff;
+        }
+        .subscription-card.status-completed .card-check-btn {
+            display: none;
+        }
+        .subscription-card {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <div class="sidebar">
+        <button class="sidebar-btn all active" id="filter-all" onclick="setFilter('all')">Все подписки</button>
+        <button class="sidebar-btn month" id="filter-month" onclick="setFilter('month')">Месячные</button>
+        <button class="sidebar-btn year" id="filter-year" onclick="setFilter('year')">Годовые</button>
+        <button class="sidebar-btn soon" id="filter-soon" onclick="setFilter('soon')">Скоро платить</button>
+        <button class="sidebar-btn completed" id="filter-completed" onclick="setFilter('completed')">Оплаченные</button>
+    </div>
+    <div class="main-content">
+        <h2 id="main-title">Все подписки</h2>
+        <div class="cards-grid" id="subscriptionsList">
+            <p>Загрузка...</p>
+        </div>
+    </div>
+</div>
+<!-- Модалка -->
+<div class="modal-bg" id="modalBg">
+    <div class="modal" id="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="modalContent">
+            <!-- Здесь будут детали подписки -->
+        </div>
+    </div>
+</div>
+<script>
+// --- JS для фильтрации, карточек и модалки ---
+
+let currentFilter = 'all';
+
+// Сопоставление фильтра и параметров API
+const filterMap = {
+    'all': {},
+    'month': { frequency: 'month' },
+    'year': { frequency: 'year' },
+    'completed': { status: 'completed' },
+    'soon': { soon: 'true' }, // теперь фильтрация на бэке
+};
+
+// При загрузке страницы — показать все подписки
+window.addEventListener('DOMContentLoaded', () => {
+    setFilter('all');
+});
+
+function setFilter(type) {
+    // Снимаем выделение со всех кнопок
+    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+    // Выделяем активную
+    document.getElementById('filter-' + type).classList.add('active');
+    // Меняем заголовок
+    let title = 'Все подписки';
+    if (type === 'month') title = 'Месячные подписки';
+    if (type === 'year') title = 'Годовые подписки';
+    if (type === 'completed') title = 'Оплаченные подписки';
+    if (type === 'soon') title = 'Скоро платить';
+    document.getElementById('main-title').textContent = title;
+    // Загружаем
+    currentFilter = type;
+    loadSubscriptions(type);
+}
+
+async function loadSubscriptions(type) {
+    let params = filterMap[type] ? { ...filterMap[type] } : {};
+    let url = '/api/subscription';
+    if (Object.keys(params).length > 0) {
+        url += '?' + new URLSearchParams(params).toString();
+    }
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        let subs = data.subscriptions || [];
+        displaySubscriptions(subs);
+    } catch (e) {
+        document.getElementById('subscriptionsList').innerHTML = '<p>Ошибка загрузки</p>';
+    }
+}
+
+function displaySubscriptions(subscriptions) {
+    const list = document.getElementById('subscriptionsList');
+    if (!subscriptions.length) {
+        list.innerHTML = '<p>Нет подписок</p>';
+        return;
+    }
+    list.innerHTML = subscriptions.map(sub => `
+        <div class="subscription-card status-${sub.status || 'other'}" onclick="openModal(${sub.id})">
+            ${sub.status !== 'completed' ? `<button class='card-check-btn' onclick='event.stopPropagation(); markCompleted(${sub.id});' title='Отметить как оплачено'>✔</button>` : ''}
+            <svg class="icon" viewBox="0 0 48 48"><rect x="8" y="12" width="32" height="28" rx="4" fill="none" stroke="#b6c6e3" stroke-width="3"/><rect x="16" y="4" width="16" height="8" rx="2" fill="#fff" stroke="#b6c6e3" stroke-width="3"/></svg>
+            <div class="name">${sub.name}</div>
+            <div class="amount">${formatAmount(sub.amount)}</div>
+        </div>
+    `).join('');
+}
+
+function formatAmount(amount) {
+    return new Intl.NumberFormat('ru-RU', {
+        style: 'currency', currency: 'RUB', minimumFractionDigits: 0
+    }).format(amount / 100);
+}
+
+// --- Модалка ---
+let currentSubscription = null;
+let isEditing = false;
+
+async function openModal(id) {
+    // Загружаем детали подписки
+    try {
+        const response = await fetch(`/api/subscription/${id}`);
+        const data = await response.json();
+        if (data.subscription) {
+            currentSubscription = data.subscription;
+            showModalContent(data.subscription);
+        } else {
+            showModalContent({ name: 'Ошибка', amount: 0 });
+        }
+    } catch (e) {
+        showModalContent({ name: 'Ошибка', amount: 0 });
+    }
+    document.getElementById('modalBg').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalBg').classList.remove('active');
+    isEditing = false;
+    currentSubscription = null;
+}
+
+function showModalContent(sub) {
+    document.getElementById('modalContent').innerHTML = `
+        <h2>${sub.name}</h2>
+        
+        <div class="modal-field">
+            <label>Название:</label>
+            <input type="text" id="edit-name" value="${sub.name}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Сумма (в копейках):</label>
+            <input type="number" id="edit-amount" value="${sub.amount}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Статус:</label>
+            <select id="edit-status" ${!isEditing ? 'disabled' : ''}>
+                <option value="progress" ${sub.status === 'progress' ? 'selected' : ''}>Активная</option>
+                <option value="completed" ${sub.status === 'completed' ? 'selected' : ''}>Оплачена</option>
+            </select>
+        </div>
+        
+        <div class="modal-field">
+            <label>Частота:</label>
+            <select id="edit-frequency" ${!isEditing ? 'disabled' : ''}>
+                <option value="month" ${sub.frequency === 'month' ? 'selected' : ''}>Месячная</option>
+                <option value="year" ${sub.frequency === 'year' ? 'selected' : ''}>Годовая</option>
+            </select>
+        </div>
+        
+        <div class="modal-field">
+            <label>Время списания:</label>
+            <input type="text" id="edit-billing-time" value="${sub.billing_time || ''}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Время пополнения:</label>
+            <input type="text" id="edit-replenishment-time" value="${sub.replenishment_time || ''}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Источник:</label>
+            <input type="text" id="edit-source" value="${sub.source || ''}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Создано:</label>
+            <input type="text" value="${sub.created_at ? new Date(sub.created_at).toLocaleString() : ''}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-field">
+            <label>Обновлено:</label>
+            <input type="text" value="${sub.updated_at ? new Date(sub.updated_at).toLocaleString() : ''}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-actions">
+            ${isEditing ? `
+                <button class="btn btn-success" onclick="saveChanges()">Сохранить</button>
+                <button class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
+            ` : `
+                <button class="btn btn-primary" onclick="startEdit()">Редактировать</button>
+                <button class="btn btn-danger" onclick="deleteSubscription()">Удалить</button>
+            `}
+        </div>
+    `;
+}
+
+function startEdit() {
+    isEditing = true;
+    showModalContent(currentSubscription);
+}
+
+function cancelEdit() {
+    isEditing = false;
+    showModalContent(currentSubscription);
+}
+
+async function saveChanges() {
+    if (!currentSubscription) return;
+    
+    const updatedData = {
+        name: document.getElementById('edit-name').value,
+        amount: parseInt(document.getElementById('edit-amount').value),
+        status: document.getElementById('edit-status').value,
+        frequency: document.getElementById('edit-frequency').value,
+        billing_time: document.getElementById('edit-billing-time').value,
+        replenishment_time: document.getElementById('edit-replenishment-time').value,
+        source: document.getElementById('edit-source').value
+    };
+    
+    try {
+        const response = await fetch(`/api/subscription/${currentSubscription.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Обновляем текущую подписку
+            currentSubscription = { ...currentSubscription, ...updatedData };
+            isEditing = false;
+            showModalContent(currentSubscription);
+            
+            // Обновляем список подписок
+            loadSubscriptions(currentFilter);
+            
+            alert('Подписка успешно обновлена!');
+        } else {
+            alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при сохранении изменений');
+    }
+}
+
+async function deleteSubscription() {
+    if (!currentSubscription || !confirm('Вы уверены, что хотите удалить эту подписку?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/subscription/${currentSubscription.id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            loadSubscriptions(currentFilter);
+            alert('Подписка успешно удалена!');
+        } else {
+            alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при удалении подписки');
+    }
+}
+
+async function markCompleted(id) {
+    try {
+        const response = await fetch(`/api/subscription/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed' })
+        });
+        const result = await response.json();
+        if (result.success) {
+            loadSubscriptions(currentFilter);
+        } else {
+            alert('Ошибка при обновлении статуса');
+        }
+    } catch (e) {
+        alert('Ошибка при обновлении статуса');
+    }
+}
+</script>
+</body>
+</html> 

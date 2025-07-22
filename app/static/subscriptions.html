@@ -227,6 +227,42 @@
         .subscription-card {
             position: relative;
         }
+        /* Стили для фильтра по месяцам */
+        .month-filter {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .month-filter.active {
+            display: block;
+        }
+        .month-filter h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1.1em;
+        }
+        .month-filter select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .month-filter button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .month-filter button:hover {
+            background: #0056b3;
+        }
         /* Стили для отображения дат */
         .date-info {
             font-size: 0.8em;
@@ -253,6 +289,16 @@
     </div>
     <div class="main-content">
         <h2 id="main-title">Все подписки</h2>
+        
+        <!-- Фильтр по месяцам для оплаченных подписок -->
+        <div class="month-filter" id="monthFilter">
+            <h3>Выберите месяц для оплаченных подписок:</h3>
+            <select id="monthSelect">
+                <option value="">Все месяцы</option>
+            </select>
+            <button onclick="applyMonthFilter()">Применить</button>
+        </div>
+        
         <div class="cards-grid" id="subscriptionsList">
             <p>Загрузка...</p>
         </div>
@@ -281,6 +327,9 @@ const filterMap = {
     'soon': { soon: 'true' }, // подписки в текущем месяце
 };
 
+// Текущий выбранный месяц для фильтра
+let selectedMonth = '';
+
 // При загрузке страницы — показать все подписки
 window.addEventListener('DOMContentLoaded', () => {
     setFilter('all');
@@ -291,6 +340,17 @@ function setFilter(type) {
     document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
     // Выделяем активную
     document.getElementById('filter-' + type).classList.add('active');
+    
+    // Показываем/скрываем фильтр по месяцам
+    const monthFilter = document.getElementById('monthFilter');
+    if (type === 'completed') {
+        monthFilter.classList.add('active');
+        populateMonthSelect();
+    } else {
+        monthFilter.classList.remove('active');
+        selectedMonth = '';
+    }
+    
     // Меняем заголовок
     let title = 'Все подписки';
     if (type === 'month') title = 'Месячные подписки';
@@ -298,6 +358,7 @@ function setFilter(type) {
     if (type === 'completed') title = 'Оплаченные подписки';
     if (type === 'soon') title = 'Подписки в этом месяце';
     document.getElementById('main-title').textContent = title;
+    
     // Загружаем
     currentFilter = type;
     loadSubscriptions(type);
@@ -305,6 +366,12 @@ function setFilter(type) {
 
 async function loadSubscriptions(type) {
     let params = filterMap[type] ? { ...filterMap[type] } : {};
+    
+    // Добавляем фильтр по месяцу, если выбран
+    if (selectedMonth) {
+        params.month = selectedMonth;
+    }
+    
     let url = '/api/subscription';
     if (Object.keys(params).length > 0) {
         url += '?' + new URLSearchParams(params).toString();
@@ -354,6 +421,46 @@ function formatDateTime(dateTimeStr) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+// Функция для заполнения селекта месяцев
+function populateMonthSelect() {
+    const monthSelect = document.getElementById('monthSelect');
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Очищаем селект, оставляя только "Все месяцы"
+    monthSelect.innerHTML = '<option value="">Все месяцы</option>';
+    
+    // Добавляем месяцы за последние 2 года
+    const monthNames = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+    
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+        for (let month = 0; month < 12; month++) {
+            const monthStr = String(month + 1).padStart(2, '0');
+            const yearMonth = `${year}-${monthStr}`;
+            const option = document.createElement('option');
+            option.value = yearMonth;
+            option.textContent = `${monthNames[month]} ${year}`;
+            monthSelect.appendChild(option);
+        }
+    }
+    
+    // Устанавливаем текущий месяц как выбранный по умолчанию
+    const currentYearMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    monthSelect.value = currentYearMonth;
+    selectedMonth = currentYearMonth;
+}
+
+// Функция для применения фильтра по месяцу
+function applyMonthFilter() {
+    const monthSelect = document.getElementById('monthSelect');
+    selectedMonth = monthSelect.value;
+    loadSubscriptions(currentFilter);
 }
 
 // --- Модалка ---

@@ -13,6 +13,7 @@ def get_subscriptions():
         status_filter = request.args.get('status')
         frequency_filter = request.args.get('frequency')
         soon_filter = request.args.get('soon')
+        month_filter = request.args.get('month')  # Фильтр по месяцу (YYYY-MM)
         
         # Начинаем с базового запроса
         query = db.query(Subscription)
@@ -53,6 +54,28 @@ def get_subscriptions():
                 Subscription.status == StatusEnum.PROGRESS  # Только активные подписки
             )
         
+        # Фильтр по месяцу для оплаченных подписок
+        if month_filter:
+            try:
+                # Парсим месяц в формате YYYY-MM
+                year, month = map(int, month_filter.split('-'))
+                
+                # Начало указанного месяца
+                start_of_month = datetime(year, month, 1, 0, 0, 0, 0)
+                
+                # Конец указанного месяца
+                if month == 12:
+                    end_of_month = datetime(year + 1, 1, 1, 23, 59, 59, 999999) - timedelta(days=1)
+                else:
+                    end_of_month = datetime(year, month + 1, 1, 23, 59, 59, 999999) - timedelta(days=1)
+                
+                query = query.filter(
+                    Subscription.billing_time >= start_of_month,
+                    Subscription.billing_time <= end_of_month
+                )
+            except (ValueError, IndexError):
+                return jsonify({"error": "Неверный формат месяца. Используйте формат YYYY-MM (например: 2025-07)"}), 400
+        
         # Выполняем запрос
         subscriptions = query.all()
         subscription_list = [sub.to_dict() for sub in subscriptions]
@@ -65,6 +88,18 @@ def get_subscriptions():
             filters_applied.append(f"частота: {frequency_filter}")
         if soon_filter == "true":
             filters_applied.append("скоро платить (в текущем месяце)")
+        if month_filter:
+            # Форматируем месяц для отображения
+            try:
+                year, month = map(int, month_filter.split('-'))
+                month_names = [
+                    "январь", "февраль", "март", "апрель", "май", "июнь",
+                    "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
+                ]
+                month_name = month_names[month - 1]
+                filters_applied.append(f"месяц: {month_name} {year}")
+            except:
+                filters_applied.append(f"месяц: {month_filter}")
         
         message = "Список подписок"
         if filters_applied:
@@ -77,7 +112,8 @@ def get_subscriptions():
             "filters": {
                 "status": status_filter,
                 "frequency": frequency_filter,
-                "soon": soon_filter
+                "soon": soon_filter,
+                "month": month_filter
             }
         })
     except Exception as e:

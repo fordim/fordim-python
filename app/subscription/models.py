@@ -20,8 +20,8 @@ class Subscription(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)  # Имя подписки
     amount = Column(Integer, nullable=False)  # Сумма в копейках/центах
-    billing_time = Column(String(50), nullable=False)  # Время списания (например: "15:30")
-    replenishment_time = Column(String(50), nullable=False)  # Время пополнения (например: "15:30")
+    billing_time = Column(DateTime, nullable=False)  # Время списания (полная дата с временем)
+    replenishment_time = Column(DateTime, nullable=False)  # Время пополнения (полная дата с временем)
     frequency = Column(Enum(FrequencyEnum), nullable=False)  # Частота повторения
     source = Column(String(100), nullable=False)  # Откуда списывается
     status = Column(Enum(StatusEnum), default=StatusEnum.PROGRESS)  # Статус
@@ -34,8 +34,8 @@ class Subscription(Base):
             "id": self.id,
             "name": self.name,
             "amount": self.amount,
-            "billing_time": self.billing_time,
-            "replenishment_time": self.replenishment_time,
+            "billing_time": self.billing_time.isoformat() if self.billing_time is not None else None,
+            "replenishment_time": self.replenishment_time.isoformat() if self.replenishment_time is not None else None,
             "frequency": self.frequency.value if self.frequency is not None else None,
             "source": self.source,
             "status": self.status.value if self.status is not None else None,

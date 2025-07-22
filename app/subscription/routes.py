@@ -33,12 +33,25 @@ def get_subscriptions():
             except ValueError:
                 return jsonify({"error": "Неверная частота. Допустимые значения: 'month', 'year'"}), 400
         
-        # Фильтр "Скоро платить" — ближайший час
+        # Фильтр "Скоро платить" — подписки в текущем месяце
         if soon_filter == "true":
             now = datetime.now()
-            now_str = now.strftime("%H:%M")
-            next_hour = (now + timedelta(hours=1)).strftime("%H:%M")
-            query = query.filter(Subscription.billing_time >= now_str, Subscription.billing_time <= next_hour)
+            
+            # Начало текущего месяца (1 число)
+            start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Конец текущего месяца (последний день месяца)
+            if now.month == 12:
+                end_of_month = now.replace(year=now.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                end_of_month = now.replace(month=now.month + 1, day=1) - timedelta(days=1)
+            end_of_month = end_of_month.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            query = query.filter(
+                Subscription.billing_time >= start_of_month,
+                Subscription.billing_time <= end_of_month,
+                Subscription.status == StatusEnum.PROGRESS  # Только активные подписки
+            )
         
         # Выполняем запрос
         subscriptions = query.all()
@@ -51,7 +64,7 @@ def get_subscriptions():
         if frequency_filter:
             filters_applied.append(f"частота: {frequency_filter}")
         if soon_filter == "true":
-            filters_applied.append("скоро платить")
+            filters_applied.append("скоро платить (в текущем месяце)")
         
         message = "Список подписок"
         if filters_applied:
@@ -87,6 +100,37 @@ def get_subscription(subscription_id):
     finally:
         db.close()
 
+def parse_datetime(datetime_str):
+    """Парсинг строки даты в datetime объект"""
+    if not datetime_str:
+        return None
+    
+    # Пробуем разные форматы
+    formats = [
+        "%Y-%m-%dT%H:%M:%S",  # ISO format
+        "%Y-%m-%d %H:%M:%S",  # MySQL format
+        "%Y-%m-%dT%H:%M",     # ISO format без секунд
+        "%Y-%m-%d %H:%M",     # MySQL format без секунд
+        "%H:%M",              # Только время (добавим сегодняшнюю дату)
+    ]
+    
+    for fmt in formats:
+        try:
+            if fmt == "%H:%M":
+                # Для формата "HH:MM" добавляем сегодняшнюю дату
+                time_parts = datetime_str.split(':')
+                if len(time_parts) == 2:
+                    hour, minute = int(time_parts[0]), int(time_parts[1])
+                    today = datetime.now().date()
+                    from datetime import time
+                    return datetime.combine(today, time(hour, minute))
+            else:
+                return datetime.strptime(datetime_str, fmt)
+        except ValueError:
+            continue
+    
+    raise ValueError(f"Не удалось распарсить дату: {datetime_str}")
+
 @subscription_bp.route('', methods=['POST'])
 def create_subscription():
     """Создание новой подписки"""
@@ -113,11 +157,18 @@ def create_subscription():
             except ValueError:
                 return jsonify({"error": "status должен быть 'completed' или 'progress'"}), 400
         
+        # Парсинг дат
+        try:
+            billing_time = parse_datetime(data['billing_time'])
+            replenishment_time = parse_datetime(data['replenishment_time'])
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
         new_subscription = Subscription(
             name=data['name'],
             amount=data['amount'],
-            billing_time=data['billing_time'],
-            replenishment_time=data['replenishment_time'],
+            billing_time=billing_time,
+            replenishment_time=replenishment_time,
             frequency=frequency,
             source=data['source'],
             status=status
@@ -153,9 +204,15 @@ def update_subscription(subscription_id):
         if 'amount' in data:
             subscription.amount = data['amount']
         if 'billing_time' in data:
-            subscription.billing_time = data['billing_time']
+            try:
+                subscription.billing_time = parse_datetime(data['billing_time'])
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
         if 'replenishment_time' in data:
-            subscription.replenishment_time = data['replenishment_time']
+            try:
+                subscription.replenishment_time = parse_datetime(data['replenishment_time'])
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
         if 'frequency' in data:
             try:
                 subscription.frequency = FrequencyEnum(data['frequency'])  # type: ignore

@@ -227,6 +227,19 @@
         .subscription-card {
             position: relative;
         }
+        /* Стили для отображения дат */
+        .date-info {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 4px;
+            text-align: center;
+        }
+        .date-info .billing {
+            color: #dc3545;
+        }
+        .date-info .replenishment {
+            color: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -235,7 +248,7 @@
         <button class="sidebar-btn all active" id="filter-all" onclick="setFilter('all')">Все подписки</button>
         <button class="sidebar-btn month" id="filter-month" onclick="setFilter('month')">Месячные</button>
         <button class="sidebar-btn year" id="filter-year" onclick="setFilter('year')">Годовые</button>
-        <button class="sidebar-btn soon" id="filter-soon" onclick="setFilter('soon')">Скоро платить</button>
+        <button class="sidebar-btn soon" id="filter-soon" onclick="setFilter('soon')">В этом месяце</button>
         <button class="sidebar-btn completed" id="filter-completed" onclick="setFilter('completed')">Оплаченные</button>
     </div>
     <div class="main-content">
@@ -265,7 +278,7 @@ const filterMap = {
     'month': { frequency: 'month' },
     'year': { frequency: 'year' },
     'completed': { status: 'completed' },
-    'soon': { soon: 'true' }, // теперь фильтрация на бэке
+    'soon': { soon: 'true' }, // подписки в текущем месяце
 };
 
 // При загрузке страницы — показать все подписки
@@ -283,7 +296,7 @@ function setFilter(type) {
     if (type === 'month') title = 'Месячные подписки';
     if (type === 'year') title = 'Годовые подписки';
     if (type === 'completed') title = 'Оплаченные подписки';
-    if (type === 'soon') title = 'Скоро платить';
+    if (type === 'soon') title = 'Подписки в этом месяце';
     document.getElementById('main-title').textContent = title;
     // Загружаем
     currentFilter = type;
@@ -318,6 +331,10 @@ function displaySubscriptions(subscriptions) {
             <svg class="icon" viewBox="0 0 48 48"><rect x="8" y="12" width="32" height="28" rx="4" fill="none" stroke="#b6c6e3" stroke-width="3"/><rect x="16" y="4" width="16" height="8" rx="2" fill="#fff" stroke="#b6c6e3" stroke-width="3"/></svg>
             <div class="name">${sub.name}</div>
             <div class="amount">${formatAmount(sub.amount)}</div>
+            <div class="date-info">
+                <div class="billing">💳 ${formatDateTime(sub.billing_time)}</div>
+                <div class="replenishment">💰 ${formatDateTime(sub.replenishment_time)}</div>
+            </div>
         </div>
     `).join('');
 }
@@ -326,6 +343,17 @@ function formatAmount(amount) {
     return new Intl.NumberFormat('ru-RU', {
         style: 'currency', currency: 'RUB', minimumFractionDigits: 0
     }).format(amount / 100);
+}
+
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr) return 'Не указано';
+    const date = new Date(dateTimeStr);
+    return date.toLocaleDateString('ru-RU', { 
+        day: '2-digit', 
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 // --- Модалка ---
@@ -356,6 +384,10 @@ function closeModal() {
 }
 
 function showModalContent(sub) {
+    // Подготавливаем значения для input datetime-local
+    const billingTime = sub.billing_time ? sub.billing_time.slice(0, 16) : '';
+    const replenishmentTime = sub.replenishment_time ? sub.replenishment_time.slice(0, 16) : '';
+    
     document.getElementById('modalContent').innerHTML = `
         <h2>${sub.name}</h2>
         
@@ -386,13 +418,13 @@ function showModalContent(sub) {
         </div>
         
         <div class="modal-field">
-            <label>Время списания:</label>
-            <input type="text" id="edit-billing-time" value="${sub.billing_time || ''}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+            <label>Дата и время списания:</label>
+            <input type="datetime-local" id="edit-billing-time" value="${billingTime}" ${!isEditing ? 'readonly class="readonly"' : ''}>
         </div>
         
         <div class="modal-field">
-            <label>Время пополнения:</label>
-            <input type="text" id="edit-replenishment-time" value="${sub.replenishment_time || ''}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+            <label>Дата и время пополнения:</label>
+            <input type="datetime-local" id="edit-replenishment-time" value="${replenishmentTime}" ${!isEditing ? 'readonly class="readonly"' : ''}>
         </div>
         
         <div class="modal-field">
@@ -402,12 +434,12 @@ function showModalContent(sub) {
         
         <div class="modal-field">
             <label>Создано:</label>
-            <input type="text" value="${sub.created_at ? new Date(sub.created_at).toLocaleString() : ''}" readonly class="readonly">
+            <input type="text" value="${sub.created_at ? new Date(sub.created_at).toLocaleString('ru-RU') : ''}" readonly class="readonly">
         </div>
         
         <div class="modal-field">
             <label>Обновлено:</label>
-            <input type="text" value="${sub.updated_at ? new Date(sub.updated_at).toLocaleString() : ''}" readonly class="readonly">
+            <input type="text" value="${sub.updated_at ? new Date(sub.updated_at).toLocaleString('ru-RU') : ''}" readonly class="readonly">
         </div>
         
         <div class="modal-actions">
@@ -498,13 +530,11 @@ async function deleteSubscription() {
 
 async function markCompleted(id) {
     try {
-        const response = await fetch(`/api/subscription/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'completed' })
+        const response = await fetch(`/api/subscription/${id}/complete`, {
+            method: 'POST'
         });
         const result = await response.json();
-        if (result.success) {
+        if (result.message) {
             loadSubscriptions(currentFilter);
         } else {
             alert('Ошибка при обновлении статуса');

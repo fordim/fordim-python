@@ -653,13 +653,7 @@ def create_new_month_instances():
         return jsonify({
             "success": False,
             "error": str(e)
-        }), 500
-        
-    except Exception as e:
-        db.rollback()
-        return jsonify({"error": str(e)}), 400
-    finally:
-        db.close() 
+        }), 500 
 
 @subscription_bp.route('/scheduler/jobs', methods=['GET'])
 def get_scheduler_jobs():

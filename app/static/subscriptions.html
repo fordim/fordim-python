@@ -71,8 +71,8 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            border: 3px solid #b6c6e3;
-            transition: border 0.2s, box-shadow 0.2s;
+            border: 3px solid #000;
+            transition: border 0.2s, box-shadow 0.2s, background 0.2s;
             position: relative;
         }
         .subscription-card.status-progress {
@@ -87,22 +87,44 @@
             background: #f5f5f5;
             border-color: #b6c6e3;
         }
+        .subscription-card.frequency-month {
+            background: #007bff;
+            color: white;
+        }
+        .subscription-card.frequency-year {
+            background: #e6e6fa;
+            color: #333;
+        }
         .subscription-card .icon {
             width: 48px;
             height: 48px;
             margin-bottom: 12px;
         }
+        /* Стили для иконок в зависимости от частоты */
+        .subscription-card.frequency-month .icon {
+            filter: brightness(0) invert(1);
+        }
+        .subscription-card.frequency-year .icon {
+            filter: none;
+        }
         .subscription-card .name {
             font-size: 1.1em;
             font-weight: bold;
-            color: #333;
             margin-bottom: 8px;
             text-align: center;
         }
         .subscription-card .amount {
             font-size: 1.2em;
-            color: #007bff;
             font-weight: bold;
+        }
+        /* Специальные стили для текста в зависимости от частоты */
+        .subscription-card.frequency-month .name,
+        .subscription-card.frequency-month .amount {
+            color: white;
+        }
+        .subscription-card.frequency-year .name,
+        .subscription-card.frequency-year .amount {
+            color: #333;
         }
         /* Модалка */
         .modal-bg {
@@ -164,6 +186,10 @@
             background: #dc3545;
             color: white;
         }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
         .modal-field {
             margin-bottom: 15px;
         }
@@ -191,10 +217,9 @@
         }
         /* Цвета для фильтров в сайдбаре */
         .sidebar-btn.all { background: #e3eafc; color: #333; }
-        .sidebar-btn.month { background: #f3e5f5; color: #7c3aed; }
-        .sidebar-btn.year { background: #e6ffe6; color: #388e3c; }
-        .sidebar-btn.soon { background: #fffde7; color: #ff9800; }
+        .sidebar-btn.to-pay { background: #fffde7; color: #ff9800; }
         .sidebar-btn.completed { background: #e6ffed; color: #28a745; }
+        .sidebar-btn.archived { background: #f5f5f5; color: #6c757d; }
         .sidebar-btn.active {
             border-left: 6px solid #007bff;
             filter: brightness(0.95);
@@ -276,19 +301,100 @@
         .date-info .replenishment {
             color: #28a745;
         }
+        /* Специальные стили для date-info в зависимости от частоты */
+        .subscription-card.frequency-month .date-info .billing {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .subscription-card.frequency-month .date-info .replenishment {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .subscription-card.frequency-year .date-info .billing {
+            color: #dc3545;
+        }
+        .subscription-card.frequency-year .date-info .replenishment {
+            color: #28a745;
+        }
+        /* Стили для отображения информации о подписке */
+        .subscription-info {
+            font-size: 0.7em;
+            margin-top: 2px;
+            text-align: center;
+        }
+        /* Специальные стили для subscription-info в зависимости от частоты */
+        .subscription-card.frequency-month .subscription-info {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .subscription-card.frequency-year .subscription-info {
+            color: #666;
+        }
+        /* Стили для кнопок создания */
+        .create-buttons {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .create-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .create-subscription-btn {
+            background: #007bff;
+            color: white;
+        }
+        .create-subscription-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .create-instance-btn {
+            background: #28a745;
+            color: white;
+        }
+        .create-instance-btn:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+        .new-month-btn {
+            background: #ffc107;
+            color: #212529;
+        }
+        .new-month-btn:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
 <div class="layout">
     <div class="sidebar">
         <button class="sidebar-btn all active" id="filter-all" onclick="setFilter('all')">Все подписки</button>
-        <button class="sidebar-btn month" id="filter-month" onclick="setFilter('month')">Месячные</button>
-        <button class="sidebar-btn year" id="filter-year" onclick="setFilter('year')">Годовые</button>
-        <button class="sidebar-btn soon" id="filter-soon" onclick="setFilter('soon')">В этом месяце</button>
+        <button class="sidebar-btn to-pay" id="filter-to-pay" onclick="setFilter('to-pay')">К оплате</button>
         <button class="sidebar-btn completed" id="filter-completed" onclick="setFilter('completed')">Оплаченные</button>
+        <button class="sidebar-btn archived" id="filter-archived" onclick="setFilter('archived')">Архив</button>
     </div>
     <div class="main-content">
         <h2 id="main-title">Все подписки</h2>
+        
+        <!-- Кнопки создания -->
+        <div class="create-buttons" id="createButtons">
+            <button class="create-btn create-subscription-btn" onclick="openCreateSubscriptionModal()">
+                ➕ Создать подписку
+            </button>
+            <button class="create-btn create-instance-btn" onclick="openCreateInstanceModal()">
+                📅 Создать экземпляр
+            </button>
+            <button class="create-btn new-month-btn" onclick="createNewMonthInstances()">
+                🗓️ Новый месяц
+            </button>
+        </div>
         
         <!-- Фильтр по месяцам для оплаченных подписок -->
         <div class="month-filter" id="monthFilter">
@@ -317,14 +423,14 @@
 // --- JS для фильтрации, карточек и модалки ---
 
 let currentFilter = 'all';
+let currentView = 'subscriptions'; // 'subscriptions' или 'instances'
 
 // Сопоставление фильтра и параметров API
 const filterMap = {
-    'all': {},
-    'month': { frequency: 'month' },
-    'year': { frequency: 'year' },
-    'completed': { status: 'completed' },
-    'soon': { soon: 'true' }, // подписки в текущем месяце
+    'all': { endpoint: '/api/subscription' },
+    'to-pay': { endpoint: '/api/subscription/instances/to-pay' },
+    'completed': { endpoint: '/api/subscription/instances', params: { status: 'completed' } },
+    'archived': { endpoint: '/api/subscription/archived' },
 };
 
 // Текущий выбранный месяц для фильтра
@@ -351,36 +457,54 @@ function setFilter(type) {
         selectedMonth = '';
     }
     
+    // Показываем/скрываем кнопки создания
+    const createButtons = document.getElementById('createButtons');
+    if (type === 'all') {
+        createButtons.style.display = 'flex';
+    } else {
+        createButtons.style.display = 'none';
+    }
+    
     // Меняем заголовок
     let title = 'Все подписки';
-    if (type === 'month') title = 'Месячные подписки';
-    if (type === 'year') title = 'Годовые подписки';
+    if (type === 'to-pay') title = 'К оплате';
     if (type === 'completed') title = 'Оплаченные подписки';
-    if (type === 'soon') title = 'Подписки в этом месяце';
+    if (type === 'archived') title = 'Архив подписок';
     document.getElementById('main-title').textContent = title;
+    
+    // Определяем тип отображения
+    currentView = (type === 'all' || type === 'archived') ? 'subscriptions' : 'instances';
     
     // Загружаем
     currentFilter = type;
-    loadSubscriptions(type);
+    loadData(type);
 }
 
-async function loadSubscriptions(type) {
-    let params = filterMap[type] ? { ...filterMap[type] } : {};
+async function loadData(type) {
+    const filterConfig = filterMap[type];
+    if (!filterConfig) return;
+    
+    let params = filterConfig.params ? { ...filterConfig.params } : {};
     
     // Добавляем фильтр по месяцу, если выбран
     if (selectedMonth) {
         params.month = selectedMonth;
     }
     
-    let url = '/api/subscription';
+    let url = filterConfig.endpoint;
     if (Object.keys(params).length > 0) {
         url += '?' + new URLSearchParams(params).toString();
     }
+    
     try {
         const response = await fetch(url);
         const data = await response.json();
-        let subs = data.subscriptions || [];
-        displaySubscriptions(subs);
+        
+        if (currentView === 'subscriptions') {
+            displaySubscriptions(data.subscriptions || []);
+        } else {
+            displayInstances(data.instances || []);
+        }
     } catch (e) {
         document.getElementById('subscriptionsList').innerHTML = '<p>Ошибка загрузки</p>';
     }
@@ -393,14 +517,35 @@ function displaySubscriptions(subscriptions) {
         return;
     }
     list.innerHTML = subscriptions.map(sub => `
-        <div class="subscription-card status-${sub.status || 'other'}" onclick="openModal(${sub.id})">
-            ${sub.status !== 'completed' ? `<button class='card-check-btn' onclick='event.stopPropagation(); markCompleted(${sub.id});' title='Отметить как оплачено'>✔</button>` : ''}
+        <div class="subscription-card status-other frequency-${sub.frequency}" onclick="openSubscriptionModal(${sub.id})">
             <svg class="icon" viewBox="0 0 48 48"><rect x="8" y="12" width="32" height="28" rx="4" fill="none" stroke="#b6c6e3" stroke-width="3"/><rect x="16" y="4" width="16" height="8" rx="2" fill="#fff" stroke="#b6c6e3" stroke-width="3"/></svg>
             <div class="name">${sub.name}</div>
             <div class="amount">${formatAmount(sub.amount)}</div>
+            <div class="subscription-info">Шаблон подписки (${sub.frequency === 'month' ? 'месячная' : 'годовая'})</div>
             <div class="date-info">
                 <div class="billing">💳 ${formatDateTime(sub.billing_time)}</div>
                 <div class="replenishment">💰 ${formatDateTime(sub.replenishment_time)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function displayInstances(instances) {
+    const list = document.getElementById('subscriptionsList');
+    if (!instances.length) {
+        list.innerHTML = '<p>Нет экземпляров подписок</p>';
+        return;
+    }
+    list.innerHTML = instances.map(instance => `
+        <div class="subscription-card status-${instance.status || 'other'}" onclick="openInstanceModal(${instance.id})">
+            ${instance.status !== 'completed' ? `<button class='card-check-btn' onclick='event.stopPropagation(); markCompleted(${instance.id});' title='Отметить как оплачено'>✔</button>` : ''}
+            <svg class="icon" viewBox="0 0 48 48"><rect x="8" y="12" width="32" height="28" rx="4" fill="none" stroke="#b6c6e3" stroke-width="3"/><rect x="16" y="4" width="16" height="8" rx="2" fill="#fff" stroke="#b6c6e3" stroke-width="3"/></svg>
+            <div class="name">${instance.subscription ? instance.subscription.name : 'Неизвестная подписка'}</div>
+            <div class="amount">${formatAmount(instance.amount)}</div>
+            <div class="subscription-info">Экземпляр подписки</div>
+            <div class="date-info">
+                <div class="billing">💳 ${formatDateTime(instance.billing_time)}</div>
+                <div class="replenishment">💰 ${formatDateTime(instance.replenishment_time)}</div>
             </div>
         </div>
     `).join('');
@@ -460,26 +605,43 @@ function populateMonthSelect() {
 function applyMonthFilter() {
     const monthSelect = document.getElementById('monthSelect');
     selectedMonth = monthSelect.value;
-    loadSubscriptions(currentFilter);
+    loadData(currentFilter);
 }
 
-// --- Модалка ---
+// --- Модалка для подписок ---
 let currentSubscription = null;
 let isEditing = false;
 
-async function openModal(id) {
+async function openSubscriptionModal(id) {
     // Загружаем детали подписки
     try {
         const response = await fetch(`/api/subscription/${id}`);
         const data = await response.json();
         if (data.subscription) {
             currentSubscription = data.subscription;
-            showModalContent(data.subscription);
+            showSubscriptionModalContent(data.subscription);
         } else {
-            showModalContent({ name: 'Ошибка', amount: 0 });
+            showSubscriptionModalContent({ name: 'Ошибка', amount: 0 });
         }
     } catch (e) {
-        showModalContent({ name: 'Ошибка', amount: 0 });
+        showSubscriptionModalContent({ name: 'Ошибка', amount: 0 });
+    }
+    document.getElementById('modalBg').classList.add('active');
+}
+
+async function openInstanceModal(id) {
+    // Загружаем детали экземпляра подписки
+    try {
+        const response = await fetch(`/api/subscription/instances/${id}`);
+        const data = await response.json();
+        if (data.instance) {
+            currentSubscription = data.instance;
+            showInstanceModalContent(data.instance);
+        } else {
+            showInstanceModalContent({ subscription: { name: 'Ошибка' }, amount: 0 });
+        }
+    } catch (e) {
+        showInstanceModalContent({ subscription: { name: 'Ошибка' }, amount: 0 });
     }
     document.getElementById('modalBg').classList.add('active');
 }
@@ -490,7 +652,7 @@ function closeModal() {
     currentSubscription = null;
 }
 
-function showModalContent(sub) {
+function showSubscriptionModalContent(sub) {
     // Подготавливаем значения для input datetime-local
     const billingTime = sub.billing_time ? sub.billing_time.slice(0, 16) : '';
     const replenishmentTime = sub.replenishment_time ? sub.replenishment_time.slice(0, 16) : '';
@@ -506,14 +668,6 @@ function showModalContent(sub) {
         <div class="modal-field">
             <label>Сумма (в копейках):</label>
             <input type="number" id="edit-amount" value="${sub.amount}" ${!isEditing ? 'readonly class="readonly"' : ''}>
-        </div>
-        
-        <div class="modal-field">
-            <label>Статус:</label>
-            <select id="edit-status" ${!isEditing ? 'disabled' : ''}>
-                <option value="progress" ${sub.status === 'progress' ? 'selected' : ''}>Активная</option>
-                <option value="completed" ${sub.status === 'completed' ? 'selected' : ''}>Оплачена</option>
-            </select>
         </div>
         
         <div class="modal-field">
@@ -551,11 +705,79 @@ function showModalContent(sub) {
         
         <div class="modal-actions">
             ${isEditing ? `
-                <button class="btn btn-success" onclick="saveChanges()">Сохранить</button>
+                <button class="btn btn-success" onclick="saveSubscriptionChanges()">Сохранить</button>
                 <button class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
             ` : `
                 <button class="btn btn-primary" onclick="startEdit()">Редактировать</button>
+                ${sub.archived_at ? `
+                    <button class="btn btn-warning" onclick="unarchiveSubscription()">Разархивировать</button>
+                ` : `
+                    <button class="btn btn-warning" onclick="archiveSubscription()">Архивировать</button>
+                `}
                 <button class="btn btn-danger" onclick="deleteSubscription()">Удалить</button>
+            `}
+        </div>
+    `;
+}
+
+function showInstanceModalContent(instance) {
+    // Подготавливаем значения для input datetime-local
+    const billingTime = instance.billing_time ? instance.billing_time.slice(0, 16) : '';
+    const replenishmentTime = instance.replenishment_time ? instance.replenishment_time.slice(0, 16) : '';
+    
+    document.getElementById('modalContent').innerHTML = `
+        <h2>${instance.subscription ? instance.subscription.name : 'Неизвестная подписка'}</h2>
+        
+        <div class="modal-field">
+            <label>Название подписки:</label>
+            <input type="text" value="${instance.subscription ? instance.subscription.name : 'Неизвестная подписка'}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-field">
+            <label>Сумма (в копейках):</label>
+            <input type="number" id="edit-amount" value="${instance.amount}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Статус:</label>
+            <select id="edit-status" ${!isEditing ? 'disabled' : ''}>
+                <option value="progress" ${instance.status === 'progress' ? 'selected' : ''}>Активная</option>
+                <option value="completed" ${instance.status === 'completed' ? 'selected' : ''}>Оплачена</option>
+            </select>
+        </div>
+        
+        <div class="modal-field">
+            <label>Дата и время списания:</label>
+            <input type="datetime-local" id="edit-billing-time" value="${billingTime}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Дата и время пополнения:</label>
+            <input type="datetime-local" id="edit-replenishment-time" value="${replenishmentTime}" ${!isEditing ? 'readonly class="readonly"' : ''}>
+        </div>
+        
+        <div class="modal-field">
+            <label>Дата завершения:</label>
+            <input type="text" value="${instance.completed_at ? new Date(instance.completed_at).toLocaleString('ru-RU') : 'Не завершена'}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-field">
+            <label>Создано:</label>
+            <input type="text" value="${instance.created_at ? new Date(instance.created_at).toLocaleString('ru-RU') : ''}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-field">
+            <label>Обновлено:</label>
+            <input type="text" value="${instance.updated_at ? new Date(instance.updated_at).toLocaleString('ru-RU') : ''}" readonly class="readonly">
+        </div>
+        
+        <div class="modal-actions">
+            ${isEditing ? `
+                <button class="btn btn-success" onclick="saveInstanceChanges()">Сохранить</button>
+                <button class="btn btn-secondary" onclick="cancelEdit()">Отмена</button>
+            ` : `
+                <button class="btn btn-primary" onclick="startEdit()">Редактировать</button>
+                <button class="btn btn-danger" onclick="deleteInstance()">Удалить</button>
             `}
         </div>
     `;
@@ -563,21 +785,28 @@ function showModalContent(sub) {
 
 function startEdit() {
     isEditing = true;
-    showModalContent(currentSubscription);
+    if (currentView === 'subscriptions') {
+        showSubscriptionModalContent(currentSubscription);
+    } else {
+        showInstanceModalContent(currentSubscription);
+    }
 }
 
 function cancelEdit() {
     isEditing = false;
-    showModalContent(currentSubscription);
+    if (currentView === 'subscriptions') {
+        showSubscriptionModalContent(currentSubscription);
+    } else {
+        showInstanceModalContent(currentSubscription);
+    }
 }
 
-async function saveChanges() {
+async function saveSubscriptionChanges() {
     if (!currentSubscription) return;
     
     const updatedData = {
         name: document.getElementById('edit-name').value,
         amount: parseInt(document.getElementById('edit-amount').value),
-        status: document.getElementById('edit-status').value,
         frequency: document.getElementById('edit-frequency').value,
         billing_time: document.getElementById('edit-billing-time').value,
         replenishment_time: document.getElementById('edit-replenishment-time').value,
@@ -598,10 +827,10 @@ async function saveChanges() {
             // Обновляем текущую подписку
             currentSubscription = { ...currentSubscription, ...updatedData };
             isEditing = false;
-            showModalContent(currentSubscription);
+            showSubscriptionModalContent(currentSubscription);
             
             // Обновляем список подписок
-            loadSubscriptions(currentFilter);
+            loadData(currentFilter);
             
             alert('Подписка успешно обновлена!');
         } else {
@@ -609,6 +838,90 @@ async function saveChanges() {
         }
     } catch (e) {
         alert('Ошибка при сохранении изменений');
+    }
+}
+
+async function saveInstanceChanges() {
+    if (!currentSubscription) return;
+    
+    const updatedData = {
+        amount: parseInt(document.getElementById('edit-amount').value),
+        status: document.getElementById('edit-status').value,
+        billing_time: document.getElementById('edit-billing-time').value,
+        replenishment_time: document.getElementById('edit-replenishment-time').value
+    };
+    
+    try {
+        const response = await fetch(`/api/subscription/instances/${currentSubscription.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Обновляем текущий экземпляр
+            currentSubscription = { ...currentSubscription, ...updatedData };
+            isEditing = false;
+            showInstanceModalContent(currentSubscription);
+            
+            // Обновляем список экземпляров
+            loadData(currentFilter);
+            
+            alert('Экземпляр подписки успешно обновлен!');
+        } else {
+            alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при сохранении изменений');
+    }
+}
+
+async function archiveSubscription() {
+    if (!currentSubscription || !confirm('Вы уверены, что хотите архивировать эту подписку?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/subscription/${currentSubscription.id}/archive`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            loadData(currentFilter);
+            alert('Подписка успешно архивирована!');
+        } else {
+            alert('Ошибка при архивации: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при архивации подписки');
+    }
+}
+
+async function unarchiveSubscription() {
+    if (!currentSubscription || !confirm('Вы уверены, что хотите разархивировать эту подписку?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/subscription/${currentSubscription.id}/unarchive`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            loadData(currentFilter);
+            alert('Подписка успешно разархивирована!');
+        } else {
+            alert('Ошибка при разархивации: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при разархивации подписки');
     }
 }
 
@@ -623,9 +936,9 @@ async function deleteSubscription() {
         });
         
         const result = await response.json();
-        if (result.success) {
+        if (result.message) {
             closeModal();
-            loadSubscriptions(currentFilter);
+            loadData(currentFilter);
             alert('Подписка успешно удалена!');
         } else {
             alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
@@ -635,19 +948,254 @@ async function deleteSubscription() {
     }
 }
 
+async function deleteInstance() {
+    if (!currentSubscription || !confirm('Вы уверены, что хотите удалить этот экземпляр подписки?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/subscription/instances/${currentSubscription.id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (result.message) {
+            closeModal();
+            loadData(currentFilter);
+            alert('Экземпляр подписки успешно удален!');
+        } else {
+            alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при удалении экземпляра подписки');
+    }
+}
+
 async function markCompleted(id) {
     try {
-        const response = await fetch(`/api/subscription/${id}/complete`, {
+        const response = await fetch(`/api/subscription/instances/${id}/complete`, {
             method: 'POST'
         });
         const result = await response.json();
         if (result.message) {
-            loadSubscriptions(currentFilter);
+            loadData(currentFilter);
         } else {
             alert('Ошибка при обновлении статуса');
         }
     } catch (e) {
         alert('Ошибка при обновлении статуса');
+    }
+}
+
+// Функции для создания подписок и экземпляров
+async function openCreateSubscriptionModal() {
+    const modalContent = document.getElementById('modalContent');
+    modalContent.innerHTML = `
+        <h3>Создать новую подписку</h3>
+        <div class="modal-field">
+            <label for="create-name">Название подписки:</label>
+            <input type="text" id="create-name" placeholder="Например: Netflix Premium">
+        </div>
+        <div class="modal-field">
+            <label for="create-amount">Сумма (в копейках):</label>
+            <input type="number" id="create-amount" placeholder="150000">
+        </div>
+        <div class="modal-field">
+            <label for="create-billing-time">Время списания:</label>
+            <input type="time" id="create-billing-time" value="10:00">
+        </div>
+        <div class="modal-field">
+            <label for="create-replenishment-time">Время пополнения:</label>
+            <input type="time" id="create-replenishment-time" value="10:00">
+        </div>
+        <div class="modal-field">
+            <label for="create-frequency">Частота:</label>
+            <select id="create-frequency">
+                <option value="month">Месячная</option>
+                <option value="year">Годовая</option>
+            </select>
+        </div>
+        <div class="modal-field">
+            <label for="create-source">Источник оплаты:</label>
+            <input type="text" id="create-source" placeholder="Например: Банковская карта">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+            <button class="btn btn-primary" onclick="createSubscription()">Создать</button>
+        </div>
+    `;
+    document.getElementById('modalBg').classList.add('active');
+}
+
+async function createSubscription() {
+    const subscriptionData = {
+        name: document.getElementById('create-name').value,
+        amount: parseInt(document.getElementById('create-amount').value),
+        billing_time: document.getElementById('create-billing-time').value,
+        replenishment_time: document.getElementById('create-replenishment-time').value,
+        frequency: document.getElementById('create-frequency').value,
+        source: document.getElementById('create-source').value
+    };
+    
+    // Валидация
+    if (!subscriptionData.name || !subscriptionData.amount || !subscriptionData.source) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subscription', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscriptionData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            loadData(currentFilter);
+            alert('Подписка успешно создана!');
+        } else {
+            alert('Ошибка при создании: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при создании подписки');
+    }
+}
+
+async function openCreateInstanceModal() {
+    // Сначала загружаем список подписок для выбора
+    try {
+        const response = await fetch('/api/subscription');
+        const data = await response.json();
+        const subscriptions = data.subscriptions || [];
+        
+        if (subscriptions.length === 0) {
+            alert('Сначала создайте хотя бы одну подписку');
+            return;
+        }
+        
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = `
+            <h3>Создать экземпляр подписки</h3>
+            <div class="modal-field">
+                <label for="create-instance-subscription">Выберите подписку:</label>
+                <select id="create-instance-subscription">
+                    ${subscriptions.map(sub => `<option value="${sub.id}">${sub.name} (${sub.frequency === 'month' ? 'месячная' : 'годовая'})</option>`).join('')}
+                </select>
+            </div>
+            <div class="modal-field">
+                <label for="create-instance-amount">Сумма (в копейках):</label>
+                <input type="number" id="create-instance-amount" placeholder="150000">
+            </div>
+            <div class="modal-field">
+                <label for="create-instance-billing-time">Дата и время списания:</label>
+                <input type="datetime-local" id="create-instance-billing-time">
+            </div>
+            <div class="modal-field">
+                <label for="create-instance-replenishment-time">Дата и время пополнения:</label>
+                <input type="datetime-local" id="create-instance-replenishment-time">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="createInstance()">Создать</button>
+            </div>
+        `;
+        
+        // Устанавливаем текущую дату и время по умолчанию
+        const now = new Date();
+        const nowStr = now.toISOString().slice(0, 16);
+        document.getElementById('create-instance-billing-time').value = nowStr;
+        document.getElementById('create-instance-replenishment-time').value = nowStr;
+        
+        document.getElementById('modalBg').classList.add('active');
+    } catch (e) {
+        alert('Ошибка при загрузке списка подписок');
+    }
+}
+
+async function createInstance() {
+    const instanceData = {
+        subscription_id: parseInt(document.getElementById('create-instance-subscription').value),
+        amount: parseInt(document.getElementById('create-instance-amount').value),
+        billing_time: document.getElementById('create-instance-billing-time').value,
+        replenishment_time: document.getElementById('create-instance-replenishment-time').value,
+        status: 'progress'  // Всегда создаем в статусе progress
+    };
+    
+    // Валидация
+    if (!instanceData.subscription_id || !instanceData.amount) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subscription/instances', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(instanceData)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeModal();
+            loadData(currentFilter);
+            alert('Экземпляр подписки успешно создан!');
+        } else {
+            alert('Ошибка при создании: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при создании экземпляра подписки');
+    }
+}
+
+async function createNewMonthInstances() {
+    if (!confirm('Создать экземпляры подписок для текущего месяца? Это действие нельзя отменить.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subscription/new-month', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Формируем детальное сообщение
+            let message = result.message + '\n\n';
+            message += `✅ Создано: ${result.created_count} экземпляров\n`;
+            message += `⏭️ Пропущено: ${result.skipped_count} подписок\n\n`;
+            
+            if (result.created_instances.length > 0) {
+                message += '📋 Созданные экземпляры:\n';
+                result.created_instances.forEach(instance => {
+                    const amount = (instance.amount / 100).toFixed(2);
+                    const date = new Date(instance.billing_time).toLocaleDateString('ru-RU');
+                    message += `  • ${instance.subscription_name} - ${amount}₽ (${date})\n`;
+                });
+            }
+            
+            if (result.skipped_subscriptions.length > 0) {
+                message += '\n⏭️ Пропущенные подписки:\n';
+                result.skipped_subscriptions.forEach(sub => {
+                    message += `  • ${sub.subscription_name} - ${sub.reason}\n`;
+                });
+            }
+            
+            alert(message);
+            loadData(currentFilter);
+        } else {
+            alert('Ошибка при создании экземпляров: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (e) {
+        alert('Ошибка при создании экземпляров нового месяца');
     }
 }
 </script>

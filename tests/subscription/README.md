@@ -1,42 +1,103 @@
-# Тесты для модуля Subscription
+# Тесты для модуля подписок
 
-Эта папка содержит тесты для API подписок.
+Этот каталог содержит тесты для модуля подписок с новой архитектурой (Subscription + SubscriptionInstance).
 
-## Файлы тестов
+## Структура тестов
 
-### `test_datetime_api.py`
-Тестирует работу API с новыми DateTime полями:
-- Создание подписок с разными форматами дат
-- Проверка корректного парсинга времени
-- Получение списка подписок
+### Актуальные тесты (новая архитектура):
 
-### `test_soon_payments.py`
-Тестирует фильтр "скоро платить":
-- Подписки в текущем месяце
-- Комбинированные фильтры (частота + период)
-- Проверка корректности фильтрации
+1. **`test_new_structure.py`** - Основной тест новой архитектуры
+   - Тестирует работу с Subscription (шаблоны подписок)
+   - Тестирует создание и получение SubscriptionInstance
+   - Проверяет фильтрацию экземпляров по статусу
+
+2. **`test_interface.py`** - Тест обновленного интерфейса
+   - Тестирует все вкладки интерфейса
+   - Проверяет работу с экземплярами к оплате
+   - Тестирует создание экземпляров для текущего месяца
+
+3. **`test_colors.py`** - Тест цветового оформления
+   - Проверяет отображение месячных и годовых подписок
+   - Тестирует статистику по типам подписок
+
+4. **`test_datetime_api.py`** - Тест работы с датами
+   - Проверяет формат DateTime полей
+   - Тестирует валидацию дат при создании экземпляров
+   - Проверяет отображение дат в API
+
+5. **`test_month_filter_new.py`** - Тест фильтра по месяцам (новая архитектура)
+   - Тестирует фильтрацию экземпляров по месяцам
+   - Проверяет работу с оплаченными экземплярами
+   - Тестирует эндпоинт "к оплате"
+
+6. **`test_create_operations.py`** - Тест операций создания
+   - Тестирует создание новых подписок
+   - Тестирует создание экземпляров подписок
+   - Проверяет валидацию данных при создании
+
+7. **`test_archive_operations.py`** - Тест операций архивации
+   - Тестирует архивацию и разархивацию подписок
+   - Проверяет фильтрацию активных и архивированных подписок
+   - Тестирует валидацию операций архивации
+
+8. **`test_new_month_instances.py`** - Тест создания экземпляров нового месяца
+   - Тестирует автоматическое создание экземпляров для текущего месяца
+   - Проверяет логику для месячных и годовых подписок
+   - Тестирует защиту от дублирования экземпляров
+
+### Удаленные тесты (устаревшие):
+
+- ~~`test_month_filter.py`~~ - Удален, заменен на `test_month_filter_new.py`
+- ~~`test_soon_payments.py`~~ - Удален, функциональность перенесена в `test_interface.py`
 
 ## Запуск тестов
 
 ```bash
-# Активируйте виртуальное окружение
-source venv/bin/activate
-
-# Запустите тест DateTime API
+# Запуск всех тестов
+python tests/subscription/test_new_structure.py
+python tests/subscription/test_interface.py
+python tests/subscription/test_colors.py
 python tests/subscription/test_datetime_api.py
+python tests/subscription/test_month_filter_new.py
+python tests/subscription/test_create_operations.py
+python tests/subscription/test_archive_operations.py
+python tests/subscription/test_new_month_instances.py
 
-# Запустите тест фильтра "скоро платить"
-python tests/subscription/test_soon_payments.py
+# Или запуск по одному
+python tests/subscription/test_colors.py
 ```
 
-## Требования
+## Новая архитектура
 
-- Запущенный Flask сервер на localhost:5000
-- Установленные зависимости (requests)
-- Данные в базе данных для тестирования
+### Subscription (шаблон подписки):
+- Основная сущность без статуса
+- Содержит базовые параметры (название, сумма, частота, источник)
+- Используется как шаблон для создания экземпляров
 
-## Примечания
+### SubscriptionInstance (экземпляр подписки):
+- Конкретные экземпляры по месяцам
+- Содержит статус (progress/completed)
+- Имеет собственные даты billing_time и replenishment_time
+- Связан с Subscription через foreign key
 
-- Тесты требуют работающего API сервера
-- Некоторые тесты могут создавать новые записи в базе данных
-- Рекомендуется использовать тестовую базу данных 
+## API эндпоинты
+
+### Subscription:
+- `GET /api/subscription` - все активные подписки (исключая архивированные)
+- `GET /api/subscription/archived` - все архивированные подписки
+- `GET /api/subscription/{id}` - конкретная подписка
+- `POST /api/subscription` - создание подписки
+- `PUT /api/subscription/{id}` - обновление подписки
+- `POST /api/subscription/{id}/archive` - архивация подписки
+- `POST /api/subscription/{id}/unarchive` - разархивация подписки
+- `DELETE /api/subscription/{id}` - удаление подписки
+
+### SubscriptionInstance:
+- `GET /api/subscription/instances` - все экземпляры
+- `GET /api/subscription/instances/{id}` - конкретный экземпляр
+- `POST /api/subscription/instances` - создание экземпляра
+- `PUT /api/subscription/instances/{id}` - обновление экземпляра
+- `DELETE /api/subscription/instances/{id}` - удаление экземпляра
+- `POST /api/subscription/instances/{id}/complete` - завершение экземпляра
+- `GET /api/subscription/instances/to-pay` - экземпляры к оплате в текущем месяце
+- `POST /api/subscription/new-month` - создание экземпляров для нового месяца 

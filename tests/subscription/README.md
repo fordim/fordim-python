@@ -45,6 +45,11 @@
    - Проверяет логику для месячных и годовых подписок
    - Тестирует защиту от дублирования экземпляров
 
+9. **`test_scheduler.py`** - Тест планировщика задач APScheduler
+   - Тестирует работу планировщика задач
+   - Проверяет API для управления планировщиком
+   - Тестирует создание экземпляров по расписанию
+
 ### Удаленные тесты (устаревшие):
 
 - ~~`test_month_filter.py`~~ - Удален, заменен на `test_month_filter_new.py`
@@ -62,6 +67,7 @@ python tests/subscription/test_month_filter_new.py
 python tests/subscription/test_create_operations.py
 python tests/subscription/test_archive_operations.py
 python tests/subscription/test_new_month_instances.py
+python tests/subscription/test_scheduler.py
 
 # Или запуск по одному
 python tests/subscription/test_colors.py
@@ -100,4 +106,7 @@ python tests/subscription/test_colors.py
 - `DELETE /api/subscription/instances/{id}` - удаление экземпляра
 - `POST /api/subscription/instances/{id}/complete` - завершение экземпляра
 - `GET /api/subscription/instances/to-pay` - экземпляры к оплате в текущем месяце
-- `POST /api/subscription/new-month` - создание экземпляров для нового месяца 
+- `POST /api/subscription/new-month` - создание экземпляров для нового месяца
+- `GET /api/subscription/scheduler/status` - статус планировщика задач
+- `GET /api/subscription/scheduler/jobs` - список задач планировщика
+- `POST /api/subscription/scheduler/run-test` - ручной запуск тестовой задачи 

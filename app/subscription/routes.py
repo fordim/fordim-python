@@ -641,105 +641,91 @@ def delete_subscription_instance(instance_id):
 @subscription_bp.route('/new-month', methods=['POST'])
 def create_new_month_instances():
     """Создание экземпляров подписок для нового месяца"""
-    db = SessionLocal()
     try:
-        # Получаем текущий месяц
-        now = datetime.utcnow()
-        current_month = now.month
-        current_year = now.year
+        from app.subscription.services import create_monthly_instances
         
-        # Начало и конец текущего месяца
-        start_of_month = datetime(current_year, current_month, 1, 0, 0, 0, 0)
-        if current_month == 12:
-            end_of_month = datetime(current_year + 1, 1, 1, 23, 59, 59, 999999) - timedelta(days=1)
-        else:
-            end_of_month = datetime(current_year, current_month + 1, 1, 23, 59, 59, 999999) - timedelta(days=1)
+        # Используем общий сервис
+        result = create_monthly_instances()
         
-        # Получаем все неархивированные подписки
-        subscriptions = db.query(Subscription).filter(Subscription.archived_at.is_(None)).all()
+        return jsonify(result)
         
-        created_instances = []
-        skipped_subscriptions = []
-        
-        for subscription in subscriptions:
-            should_create = False
-            new_billing_time = None
-            new_replenishment_time = None
-            
-            if subscription.frequency == FrequencyEnum.MONTH:
-                # Для месячных подписок - создаем экземпляр каждый месяц
-                should_create = True
-                # Берем время из подписки, но меняем на текущий месяц
-                new_billing_time = start_of_month.replace(
-                    hour=subscription.billing_time.hour,
-                    minute=subscription.billing_time.minute,
-                    second=subscription.billing_time.second
-                )
-                new_replenishment_time = start_of_month.replace(
-                    hour=subscription.replenishment_time.hour,
-                    minute=subscription.replenishment_time.minute,
-                    second=subscription.replenishment_time.second
-                )
-                
-            elif subscription.frequency == FrequencyEnum.YEAR:
-                # Для годовых подписок - создаем только если billing_time в текущем месяце
-                if subscription.billing_time.month == current_month:
-                    should_create = True
-                    # Берем время из подписки, но меняем год на текущий
-                    new_billing_time = subscription.billing_time.replace(year=current_year)
-                    new_replenishment_time = subscription.replenishment_time.replace(year=current_year)
-            
-            if should_create:
-                # Проверяем, не создан ли уже экземпляр для этой подписки в текущем месяце
-                existing_instance = db.query(SubscriptionInstance).filter(
-                    SubscriptionInstance.subscription_id == subscription.id,
-                    SubscriptionInstance.billing_time >= start_of_month,
-                    SubscriptionInstance.billing_time <= end_of_month
-                ).first()
-                
-                if existing_instance:
-                    skipped_subscriptions.append({
-                        "subscription_name": subscription.name,
-                        "reason": "Экземпляр уже создан для текущего месяца"
-                    })
-                else:
-                    # Создаем новый экземпляр
-                    new_instance = SubscriptionInstance(
-                        subscription_id=subscription.id,
-                        amount=subscription.amount,
-                        billing_time=new_billing_time,
-                        replenishment_time=new_replenishment_time,
-                        status=StatusEnum.PROGRESS
-                    )
-                    db.add(new_instance)
-                    created_instances.append({
-                        "subscription_name": subscription.name,
-                        "amount": subscription.amount,
-                        "billing_time": new_billing_time.isoformat(),
-                        "frequency": subscription.frequency.value
-                    })
-        
-        # Сохраняем изменения
-        db.commit()
-        
-        # Формируем сообщение
-        month_names = [
-            "январь", "февраль", "март", "апрель", "май", "июнь",
-            "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
-        ]
-        month_name = month_names[current_month - 1]
-        
+    except Exception as e:
         return jsonify({
-            "success": True,
-            "message": f"Создано экземпляров для {month_name} {current_year}",
-            "created_count": len(created_instances),
-            "skipped_count": len(skipped_subscriptions),
-            "created_instances": created_instances,
-            "skipped_subscriptions": skipped_subscriptions
-        })
+            "success": False,
+            "error": str(e)
+        }), 500
         
     except Exception as e:
         db.rollback()
         return jsonify({"error": str(e)}), 400
     finally:
         db.close() 
+
+@subscription_bp.route('/scheduler/jobs', methods=['GET'])
+def get_scheduler_jobs():
+    """Получение списка задач планировщика"""
+    try:
+        from app.scheduler import test_scheduler
+        
+        jobs = test_scheduler.get_jobs()
+        job_list = []
+        
+        for job in jobs:
+            job_list.append({
+                'id': job.id,
+                'name': job.name,
+                'next_run': job.next_run_time.isoformat() if job.next_run_time else None,
+                'trigger': str(job.trigger)
+            })
+        
+        return jsonify({
+            'success': True,
+            'jobs': job_list,
+            'total_count': len(job_list)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@subscription_bp.route('/scheduler/run-test', methods=['POST'])
+def run_test_instance_manual():
+    """Ручной запуск создания тестового экземпляра"""
+    try:
+        from app.scheduler import test_scheduler
+        
+        # Вызываем функцию создания тестового экземпляра
+        test_scheduler.create_test_instance()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Тестовый экземпляр создан вручную'
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@subscription_bp.route('/scheduler/status', methods=['GET'])
+def get_scheduler_status():
+    """Получение статуса планировщика"""
+    try:
+        from app.scheduler import test_scheduler
+        
+        jobs = test_scheduler.get_jobs()
+        status = {
+            'running': test_scheduler.scheduler.running,
+            'total_jobs': len(jobs),
+            'jobs': []
+        }
+        
+        for job in jobs:
+            status['jobs'].append({
+                'id': job.id,
+                'name': job.name,
+                'next_run': job.next_run_time.isoformat() if job.next_run_time else None,
+                'trigger': str(job.trigger)
+            })
+        
+        return jsonify({
+            'success': True,
+            'scheduler': status
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400 

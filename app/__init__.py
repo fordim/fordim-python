@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+import atexit
 
 def create_app():
     """Фабрика для создания Flask приложения"""
@@ -38,5 +39,17 @@ def create_app():
     from app.routes import bp as main_bp
     app.register_blueprint(main_bp)
     print("✅ Зарегистрирован Blueprint main")
+    
+    # Запуск планировщика задач
+    try:
+        from app.scheduler import test_scheduler
+        test_scheduler.start()
+        print("✅ Запущен тестовый планировщик задач")
+        
+        # Остановка планировщика при завершении приложения
+        atexit.register(test_scheduler.stop)
+        
+    except Exception as e:
+        print(f"❌ Ошибка запуска планировщика: {e}")
     
     return app 

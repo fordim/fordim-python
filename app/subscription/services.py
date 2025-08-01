@@ -48,7 +48,7 @@ def create_monthly_instances(db_session=None):
             new_billing_time = None
             new_replenishment_time = None
             
-            if subscription.frequency == FrequencyEnum.MONTH:
+            if subscription.frequency == FrequencyEnum.MONTH: # type: ignore
                 # Для месячных подписок - создаем экземпляр каждый месяц
                 should_create = True
                 # Берем время из подписки, но меняем на текущий месяц
@@ -63,7 +63,7 @@ def create_monthly_instances(db_session=None):
                     second=subscription.replenishment_time.second
                 )
                 
-            elif subscription.frequency == FrequencyEnum.YEAR:
+            elif subscription.frequency == FrequencyEnum.YEAR:  # type: ignore
                 # Для годовых подписок - создаем только если billing_time в текущем месяце
                 if subscription.billing_time.month == current_month:
                     should_create = True
@@ -97,7 +97,7 @@ def create_monthly_instances(db_session=None):
                     created_instances.append({
                         "subscription_name": subscription.name,
                         "amount": subscription.amount,
-                        "billing_time": new_billing_time.isoformat(),
+                        "billing_time": new_billing_time.isoformat(), # type: ignore
                         "frequency": subscription.frequency.value
                     })
         

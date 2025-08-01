@@ -79,6 +79,10 @@
             background: #fffbe6;
             border-color: #ffc107;
         }
+        .subscription-card.status-ready {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
         .subscription-card.status-completed {
             background: #e6ffed;
             border-color: #28a745;
@@ -246,7 +250,33 @@
             background: #28a745;
             color: #fff;
         }
-        .subscription-card.status-completed .card-check-btn {
+        .card-ready-btn {
+            position: absolute;
+            top: 8px;
+            right: 40px;
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            color: #2196f3;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 1.2em;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .card-ready-btn:hover {
+            background: #2196f3;
+            color: #fff;
+        }
+        .subscription-card.status-completed .card-check-btn,
+        .subscription-card.status-completed .card-ready-btn {
+            display: none;
+        }
+        .subscription-card.status-ready .card-ready-btn {
             display: none;
         }
         .subscription-card {
@@ -538,6 +568,7 @@ function displayInstances(instances) {
     }
     list.innerHTML = instances.map(instance => `
         <div class="subscription-card status-${instance.status || 'other'}" onclick="openInstanceModal(${instance.id})">
+            ${instance.status === 'progress' ? `<button class='card-ready-btn' onclick='event.stopPropagation(); markReady(${instance.id});' title='Готов к оплате'>💰</button>` : ''}
             ${instance.status !== 'completed' ? `<button class='card-check-btn' onclick='event.stopPropagation(); markCompleted(${instance.id});' title='Отметить как оплачено'>✔</button>` : ''}
             <svg class="icon" viewBox="0 0 48 48"><rect x="8" y="12" width="32" height="28" rx="4" fill="none" stroke="#b6c6e3" stroke-width="3"/><rect x="16" y="4" width="16" height="8" rx="2" fill="#fff" stroke="#b6c6e3" stroke-width="3"/></svg>
             <div class="name">${instance.subscription ? instance.subscription.name : 'Неизвестная подписка'}</div>
@@ -741,7 +772,8 @@ function showInstanceModalContent(instance) {
         <div class="modal-field">
             <label>Статус:</label>
             <select id="edit-status" ${!isEditing ? 'disabled' : ''}>
-                <option value="progress" ${instance.status === 'progress' ? 'selected' : ''}>Активная</option>
+                <option value="progress" ${instance.status === 'progress' ? 'selected' : ''}>Активная (ожидает пополнения)</option>
+                <option value="ready" ${instance.status === 'ready' ? 'selected' : ''}>Готов к оплате (деньги есть, ждет времени)</option>
                 <option value="completed" ${instance.status === 'completed' ? 'selected' : ''}>Оплачена</option>
             </select>
         </div>
@@ -936,15 +968,18 @@ async function deleteSubscription() {
         });
         
         const result = await response.json();
-        if (result.message) {
+        
+        if (response.ok && result.message) {
             closeModal();
             loadData(currentFilter);
             alert('Подписка успешно удалена!');
         } else {
-            alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
+            // Показываем более подробную ошибку
+            const errorMessage = result.error || 'Неизвестная ошибка';
+            alert('Ошибка при удалении: ' + errorMessage);
         }
     } catch (e) {
-        alert('Ошибка при удалении подписки');
+        alert('Ошибка при удалении подписки: ' + e.message);
     }
 }
 
@@ -959,21 +994,40 @@ async function deleteInstance() {
         });
         
         const result = await response.json();
-        if (result.message) {
+        
+        if (response.ok && result.message) {
             closeModal();
             loadData(currentFilter);
             alert('Экземпляр подписки успешно удален!');
         } else {
-            alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
+            // Показываем более подробную ошибку
+            const errorMessage = result.error || 'Неизвестная ошибка';
+            alert('Ошибка при удалении: ' + errorMessage);
         }
     } catch (e) {
-        alert('Ошибка при удалении экземпляра подписки');
+        alert('Ошибка при удалении экземпляра подписки: ' + e.message);
     }
 }
 
 async function markCompleted(id) {
     try {
         const response = await fetch(`/api/subscription/instances/${id}/complete`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (result.message) {
+            loadData(currentFilter);
+        } else {
+            alert('Ошибка при обновлении статуса');
+        }
+    } catch (e) {
+        alert('Ошибка при обновлении статуса');
+    }
+}
+
+async function markReady(id) {
+    try {
+        const response = await fetch(`/api/subscription/instances/${id}/ready`, {
             method: 'POST'
         });
         const result = await response.json();

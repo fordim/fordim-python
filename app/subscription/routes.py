@@ -248,12 +248,12 @@ def update_subscription(subscription_id):
             subscription.amount = data['amount']
         if 'billing_time' in data:
             try:
-                subscription.billing_time = parse_datetime(data['billing_time'])
+                subscription.billing_time = parse_datetime(data['billing_time']) # type: ignore
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
         if 'replenishment_time' in data:
             try:
-                subscription.replenishment_time = parse_datetime(data['replenishment_time'])
+                subscription.replenishment_time = parse_datetime(data['replenishment_time']) # type: ignore
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
         if 'frequency' in data:
@@ -286,7 +286,7 @@ def archive_subscription(subscription_id):
         if subscription.archived_at is not None:
             return jsonify({"error": "Подписка уже архивирована"}), 400
         
-        subscription.archived_at = datetime.utcnow()
+        subscription.archived_at = datetime.utcnow() # type: ignore
         db.commit()
         
         return jsonify({
@@ -312,7 +312,7 @@ def unarchive_subscription(subscription_id):
         if subscription.archived_at is None:
             return jsonify({"error": "Подписка не архивирована"}), 400
         
-        subscription.archived_at = None
+        subscription.archived_at = None # type: ignore
         db.commit()
         
         return jsonify({
@@ -334,6 +334,16 @@ def delete_subscription(subscription_id):
         subscription = db.query(Subscription).filter(Subscription.id == subscription_id).first()
         if not subscription:
             return jsonify({"error": "Подписка не найдена"}), 404
+        
+        # Проверяем, есть ли связанные экземпляры
+        instances_count = db.query(SubscriptionInstance).filter(
+            SubscriptionInstance.subscription_id == subscription_id
+        ).count()
+        
+        if instances_count > 0:
+            return jsonify({
+                "error": f"Невозможно удалить подписку. У неё есть {instances_count} связанных экземпляров. Сначала удалите все экземпляры."
+            }), 400
         
         db.delete(subscription)
         db.commit()
@@ -366,13 +376,13 @@ def get_instances_to_pay():
             end_of_month = now.replace(month=now.month + 1, day=1) - timedelta(days=1)
         end_of_month = end_of_month.replace(hour=23, minute=59, second=59, microsecond=999999)
         
-        # Запрос экземпляров с billing_time в текущем месяце и статусом progress
+        # Запрос экземпляров с billing_time в текущем месяце и статусом progress или ready
         query = db.query(SubscriptionInstance).options(
             joinedload(SubscriptionInstance.subscription)
         ).filter(
             SubscriptionInstance.billing_time >= start_of_month,
             SubscriptionInstance.billing_time <= end_of_month,
-            SubscriptionInstance.status == StatusEnum.PROGRESS
+            SubscriptionInstance.status.in_([StatusEnum.PROGRESS, StatusEnum.READY])
         )
         
         instances = query.all()
@@ -411,7 +421,7 @@ def get_subscription_instances():
                 status_enum = StatusEnum(status_filter)
                 query = query.filter(SubscriptionInstance.status == status_enum)
             except ValueError:
-                return jsonify({"error": "Неверный статус. Допустимые значения: 'completed', 'progress'"}), 400
+                return jsonify({"error": "Неверный статус. Допустимые значения: 'completed', 'progress', 'ready'"}), 400
         
         # Фильтр по подписке
         if subscription_id:
@@ -519,7 +529,7 @@ def create_subscription_instance():
             try:
                 status = StatusEnum(data['status'])
             except ValueError:
-                return jsonify({"error": "status должен быть 'completed' или 'progress'"}), 400
+                return jsonify({"error": "status должен быть 'completed', 'progress' или 'ready'"}), 400
         
         # Парсинг дат
         try:
@@ -560,12 +570,34 @@ def complete_subscription_instance(instance_id):
         if not instance:
             return jsonify({"error": "Экземпляр подписки не найден"}), 404
         
-        instance.status = StatusEnum.COMPLETED
-        instance.completed_at = datetime.utcnow()
+        instance.status = StatusEnum.COMPLETED # type: ignore
+        instance.completed_at = datetime.utcnow() # type: ignore
         db.commit()
         
         return jsonify({
             "message": "Экземпляр подписки завершен", 
+            "instance": instance.to_dict()
+        })
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        db.close()
+
+@subscription_bp.route('/instances/<int:instance_id>/ready', methods=['POST'])
+def ready_subscription_instance(instance_id):
+    """Перевод экземпляра подписки в статус готовности к оплате"""
+    db = SessionLocal()
+    try:
+        instance = db.query(SubscriptionInstance).filter(SubscriptionInstance.id == instance_id).first()
+        if not instance:
+            return jsonify({"error": "Экземпляр подписки не найден"}), 404
+        
+        instance.status = StatusEnum.READY # type: ignore
+        db.commit()
+        
+        return jsonify({
+            "message": "Экземпляр подписки готов к оплате", 
             "instance": instance.to_dict()
         })
     except Exception as e:
@@ -589,23 +621,23 @@ def update_subscription_instance(instance_id):
             instance.amount = data['amount']
         if 'billing_time' in data:
             try:
-                instance.billing_time = parse_datetime(data['billing_time'])
+                instance.billing_time = parse_datetime(data['billing_time']) # type: ignore
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
         if 'replenishment_time' in data:
             try:
-                instance.replenishment_time = parse_datetime(data['replenishment_time'])
+                instance.replenishment_time = parse_datetime(data['replenishment_time']) # type: ignore
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
         if 'status' in data:
             try:
-                instance.status = StatusEnum(data['status'])
+                instance.status = StatusEnum(data['status']) # type: ignore
                 if data['status'] == 'completed' and instance.completed_at is None:
-                    instance.completed_at = datetime.utcnow()
-                elif data['status'] == 'progress':
-                    instance.completed_at = None
+                    instance.completed_at = datetime.utcnow() # type: ignore
+                elif data['status'] in ['progress', 'ready']:
+                    instance.completed_at = None # type: ignore
             except ValueError:
-                return jsonify({"error": "status должен быть 'completed' или 'progress'"}), 400
+                return jsonify({"error": "status должен быть 'completed', 'progress' или 'ready'"}), 400
         
         db.commit()
         return jsonify({

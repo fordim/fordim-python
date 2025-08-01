@@ -13,6 +13,7 @@ class StatusEnum(enum.Enum):
     """Enum для статуса подписки"""
     COMPLETED = "completed"
     PROGRESS = "progress"
+    READY = "ready"
 
 class Subscription(Base):
     """Модель подписки (шаблон)"""
@@ -56,7 +57,7 @@ class SubscriptionInstance(Base):
     amount = Column(Integer, nullable=False)  # Сумма для этого экземпляра (может отличаться от базовой)
     billing_time = Column(DateTime, nullable=False)  # Время списания для этого экземпляра
     replenishment_time = Column(DateTime, nullable=False)  # Время пополнения для этого экземпляра
-    status = Column(Enum(StatusEnum), default=StatusEnum.PROGRESS)  # Статус этого экземпляра
+    status = Column(Enum(StatusEnum, values_callable=lambda obj: [e.value for e in obj]), default=StatusEnum.PROGRESS)  # Статус этого экземпляра
     completed_at = Column(DateTime, nullable=True)  # Когда перевели в статус completed
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -80,7 +81,7 @@ class SubscriptionInstance(Base):
             "amount": self.amount,
             "billing_time": format_datetime(self.billing_time),
             "replenishment_time": format_datetime(self.replenishment_time),
-            "status": self.status.value if self.status is not None else None,
+            "status": self.status.value if self.status is not None and hasattr(self.status, 'value') else (self.status if self.status is not None else None),
             "completed_at": format_datetime(self.completed_at),
             "created_at": format_datetime(self.created_at),
             "updated_at": format_datetime(self.updated_at),
